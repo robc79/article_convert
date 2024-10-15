@@ -1,4 +1,6 @@
 ﻿using CommandLine;
+using Markdig;
+using Markdig.Prism;
 
 namespace ArticleConvert;
 
@@ -13,18 +15,6 @@ public class Program
     {
         _options = options;
         _sniffer = sniffer;
-    }
-
-    public void Run()
-    {
-        var headline = FindHeadline(_options.Headline, _options.Source);
-
-        if (headline is null)
-        {
-            throw new UnableToSniffHeadlineException("Headline not found in source file.");
-        }
-
-        Console.WriteLine(headline);
     }
 
     public static void Main(string[] args)
@@ -43,13 +33,54 @@ public class Program
         program.Run();
     }
 
-    private string? FindHeadline(string? headline, string sourceFile)
+    public void Run()
     {
-        if (headline is not null)
+        var headline = _options.Headline ?? _sniffer.SniffHeadline(_options.Source);
+
+        if (headline is null)
         {
-            return headline;
+            throw new UnableToSniffHeadlineException("Headline not found in source file.");
         }
 
-        return _sniffer.SniffHeadline(sourceFile);
+        if (_options.Headline is null)
+        {
+            Console.WriteLine($"Found headline: {headline}");
+        }
+
+        var markdown = LoadFromFile(_options.Source);
+
+        var mdPipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .UsePrism()
+            .Build();
+        
+        var article = Markdown.ToHtml(markdown, mdPipeline);
+        var html = LoadFromFile(_options.TemplateName);
+        html = html.Replace("{{HEADLINE}}", headline);
+        html = html.Replace("{{DATELINE}}", _options.DateLine);
+        html = html.Replace("{{ARTICLE}}", article);
+        WriteToFile(_options.Destination, html);
+    }
+
+    private string LoadFromFile(string filename)
+    {
+        string markdown;
+
+        using (var file = File.Open(filename, FileMode.Open, FileAccess.Read))
+        using (var reader = new StreamReader(file))
+        {
+            markdown = reader.ReadToEnd();
+        }
+
+        return markdown;
+    }
+
+    private void WriteToFile(string filename, string text)
+    {
+        using (var file = File.Open(filename, FileMode.CreateNew, FileAccess.Write))
+        using (var writer = new StreamWriter(file))
+        {
+            writer.WriteLine(text);
+        }
     }
 }

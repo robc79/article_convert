@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="commandlineparser" Version="2.9.1" />
     <PackageReference Include="markdig" Version="0.37.0" />
+    <PackageReference Include="webstoating.markdig.prism" Version="1.0.0" />
   </ItemGroup>
 
 </Project>
